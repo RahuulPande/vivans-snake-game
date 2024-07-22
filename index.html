@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vivan's Snake Adventure</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <h1>Vivan's Snake Adventure</h1>
+    <canvas id="gameCanvas" width="300" height="300"></canvas>
+    <p id="score">Vivan's Score: 0 | High Score: 0</p>
+    <p id="stage">Stage: 1</p>
+    <p id="message">Use arrow keys or swipe to play. Click to start!</p>
+
+    <script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const stageElement = document.getElementById('stage');
+        const messageElement = document.getElementById('message');
+
+        const GRID_SIZE = 10;
+        const GAME_SIZE = 30;
+
+        let snake, food, direction, score, highScore, gameLoop, stage;
+
+        function init() {
+            snake = [{x: 15, y: 15}];
+            food = getRandomPosition();
+            direction = 'right';
+            score = 0;
+            highScore = localStorage.getItem('highScore') || 0;
+            stage = 1;
+            updateScore();
+            updateStage();
+        }
+
+        function getRandomPosition() {
+            return {
+                x: Math.floor(Math.random() * GAME_SIZE),
+                y: Math.floor(Math.random() * GAME_SIZE)
+            };
+        }
+
+        function draw() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'lime';
+            snake.forEach(part => ctx.fillRect(part.x * GRID_SIZE, part.y * GRID_SIZE, GRID_SIZE - 1, GRID_SIZE - 1));
+
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x * GRID_SIZE, food.y * GRID_SIZE, GRID_SIZE - 1, GRID_SIZE - 1);
+        }
+
+        function move() {
+            const head = Object.assign({}, snake[0]);
+
+            switch(direction) {
+                case 'up': head.y--; break;
+                case 'down': head.y++; break;
+                case 'left': head.x--; break;
+                case 'right': head.x++; break;
+            }
+
+            head.x = (head.x + GAME_SIZE) % GAME_SIZE;
+            head.y = (head.y + GAME_SIZE) % GAME_SIZE;
+
+            if (snake.some(part => part.x === head.x && part.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                updateScore();
+                food = getRandomPosition();
+                if (score % 100 === 0) {
+                    stage++;
+                    updateStage();
+                    messageElement.textContent = `Stage ${stage - 1} Cleared!`;
+                    setTimeout(() => messageElement.textContent = '', 2000);
+                }
+            } else {
+                snake.pop();
+            }
+
+            draw();
+        }
+
+        function updateScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+            }
+            scoreElement.textContent = `Vivan's Score: ${score} | High Score: ${highScore}`;
+        }
+
+        function updateStage() {
+            stageElement.textContent = `Stage: ${stage}`;
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            messageElement.textContent = `Game Over! Click to restart.`;
+            canvas.addEventListener('click', startGame);
+        }
+
+        function startGame() {
+            init();
+            canvas.removeEventListener('click', startGame);
+            gameLoop = setInterval(move, 100);
+            messageElement.textContent = '';
+        }
+
+        document.addEventListener('keydown', e => {
+            const key = e.key.replace('Arrow', '').toLowerCase();
+            if (['up', 'down', 'left', 'right'].includes(key) && 
+                !(['up', 'down'].includes(key) && ['up', 'down'].includes(direction)) &&
+                !(['left', 'right'].includes(key) && ['left', 'right'].includes(direction))) {
+                direction = key;
+            }
+        });
+
+        let touchStartX, touchStartY;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener('touchmove', e => {
+            if (!touchStartX || !touchStartY) return;
+            let dx = e.touches[0].clientX - touchStartX;
+            let dy = e.touches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                direction = dx > 0 ? 'right' : 'left';
+            } else {
+                direction = dy > 0 ? 'down' : 'up';
+            }
+            touchStartX = touchStartY = null;
+        });
+
+        init();
+        draw();
+        canvas.addEventListener('click', startGame);
+    })();
+    </script>
+</body>
+</html>
